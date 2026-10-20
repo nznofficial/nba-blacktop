@@ -102,10 +102,15 @@ h1, h2, h3, h4, p { margin: 0; }
 /* ---------- Navigation ---------- */
 .nav {
   position: sticky; top: 0; z-index: 30;
-  background: color-mix(in srgb, var(--paper) 88%, transparent);
-  backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+  background: var(--paper);
   border-bottom: 2px solid var(--line);
   padding-top: env(safe-area-inset-top);
+}
+/* Installed on iOS the page runs under the status bar, whose text is always white:
+   give it a solid black strip so it stays sharp and legible in both themes. */
+.nav::before {
+  content: ''; position: absolute; left: 0; right: 0; top: 0;
+  height: env(safe-area-inset-top); background: #111111;
 }
 .nav-inner {
   max-width: 1200px; margin: 0 auto; padding: 0 24px;

@@ -101,16 +101,21 @@ h1, h2, h3, h4, p { margin: 0; }
 
 /* ---------- Navigation ---------- */
 .nav {
+  /* Extra black below the status bar when installed as an app; 0 in the browser. */
+  --status-strip: calc(env(safe-area-inset-top) + var(--status-extra, 0px));
   position: sticky; top: 0; z-index: 30;
   background: var(--paper);
   border-bottom: 2px solid var(--line);
-  padding-top: env(safe-area-inset-top);
+  padding-top: var(--status-strip);
+}
+@media (display-mode: standalone) {
+  .nav { --status-extra: 10px; }
 }
 /* Installed on iOS the page runs under the status bar, whose text is always white:
    give it a solid black strip so it stays sharp and legible in both themes. */
 .nav::before {
   content: ''; position: absolute; left: 0; right: 0; top: 0;
-  height: env(safe-area-inset-top); background: #111111;
+  height: var(--status-strip); background: #111111;
 }
 .nav-inner {
   max-width: 1200px; margin: 0 auto; padding: 0 24px;

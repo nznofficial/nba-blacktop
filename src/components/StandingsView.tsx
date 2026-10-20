@@ -14,7 +14,7 @@ function Table({ conf, favTeams, onToggleFav }: { conf: Conference; favTeams: st
   return (
     <div className="conf-block">
       <h2 className="conf-name">
-        <em>{conf.short === 'East' ? 'Eastern' : 'Western'}</em> Conference
+        <em>{conf.short}</em> Conference
       </h2>
       <table className="standings">
         <thead>

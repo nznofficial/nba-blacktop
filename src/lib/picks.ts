@@ -66,7 +66,7 @@ export function shareText(picks: Picks, ymd: string, dateLabel: string) {
     .sort((a, b) => +new Date(a.tip) - +new Date(b.tip))
   const w = day.filter((p) => p.result === 'W').length
   const graded = day.filter((p) => p.result).length
-  const grid = day.map((p) => (p.result === 'W' ? '🌊' : p.result === 'L' ? '🪨' : '🐚')).join('')
+  const grid = day.map((p) => (p.result === 'W' ? '🔥' : p.result === 'L' ? '🧱' : '⏳')).join('')
   const { current } = pickStats(picks)
-  return `🏀🏖️ Courtside Tides Pick'em — ${dateLabel}\n${w}/${graded || day.length} ${grid}${current >= 2 ? `\n🔥 ${current}-pick streak` : ''}`
+  return `🏀 BLACKTOP Pick'em — ${dateLabel}\n${w}/${graded || day.length} ${grid}${current >= 2 ? `\n🔥 ${current}-pick streak` : ''}`
 }

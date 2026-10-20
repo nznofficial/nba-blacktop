@@ -20,7 +20,7 @@ const TABS: [Tab, string][] = [
   ['pickem', 'Pick’em'],
 ]
 const THEME_NEXT: Record<ThemeMode, ThemeMode> = { auto: 'light', light: 'dark', dark: 'auto' }
-const THEME_LABEL: Record<ThemeMode, string> = { auto: 'Auto', light: 'Day', dark: 'Night' }
+const THEME_LABEL: Record<ThemeMode, string> = { auto: 'Auto', light: 'Concrete', dark: 'After hours' }
 const STANDINGS_TTL = 5 * 60_000
 
 // Supports shareable links like ?date=20261225 and #game=401909088
@@ -37,7 +37,7 @@ function useTheme() {
     const apply = () => {
       const dark = mode === 'dark' || (mode === 'auto' && mq.matches)
       document.documentElement.dataset.theme = dark ? 'dark' : 'light'
-      document.querySelector('meta[name="theme-color"]')?.setAttribute('content', dark ? '#0a1a22' : '#f5f0e6')
+      document.querySelector('meta[name="theme-color"]')?.setAttribute('content', dark ? '#0d0d0e' : '#e9e7e2')
     }
     apply()
     mq.addEventListener('change', apply)
@@ -138,9 +138,9 @@ export default function App() {
       <Background />
       <nav className="nav">
         <div className="nav-inner">
-          <button className="wordmark" onClick={() => { setYmd(todayYMD()); switchTab('games') }} aria-label="Courtside Tides, go to today">
-            <svg className="wm-wave" viewBox="0 0 40 14" aria-hidden="true"><path d="M1 9c4-5 8-5 12 0s8 5 12 0 8-5 12 0" /></svg>
-            <span>Courtside <em>Tides</em></span>
+          <button className="wordmark" onClick={() => { setYmd(todayYMD()); switchTab('games') }} aria-label="Blacktop, go to today">
+            <span className="wm-box">Blacktop</span>
+            <span className="wm-tag">NBA 26–27</span>
           </button>
           <div className="nav-tabs" role="tablist">
             {TABS.map(([key, label]) => (
@@ -184,9 +184,9 @@ export default function App() {
       </main>
 
       <footer className="colophon">
-        <svg viewBox="0 0 120 14" aria-hidden="true"><path d="M1 9c5-6 10-6 15 0s10 6 15 0 10-6 15 0 10 6 15 0 10-6 15 0 10 6 15 0 10-6 15 0 10 6 13 2" /></svg>
+        <div className="colo-mark" aria-hidden="true">Blacktop</div>
         <p>
-          Courtside <em>Tides</em> · Data from ESPN · Not affiliated with the NBA.
+          Data from ESPN · Not affiliated with the NBA.
           <br />
           Odds for entertainment only. If you gamble, please do so responsibly: 1-800-GAMBLER.
         </p>

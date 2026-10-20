@@ -7,6 +7,7 @@ import { DateRail } from './DateRail'
 import { GameRow } from './GameRow'
 import { Refresh } from './Icons'
 import { Lede } from './Lede'
+import { Ticker } from './Ticker'
 import { featured } from './story'
 
 interface Props {
@@ -69,6 +70,7 @@ export function GamesView({ ymd, setYmd, favTeams, onToggleFav, picks, onPick, o
 
   return (
     <div className="page">
+      {games && games.length > 0 && <Ticker games={games} onOpen={onOpen} />}
       <header className="masthead">
         <div className="dateline">
           <span>{longDate(ymd)}</span>
@@ -83,9 +85,9 @@ export function GamesView({ ymd, setYmd, favTeams, onToggleFav, picks, onPick, o
         </h1>
         <p className="standfirst">
           {games == null
-            ? 'Checking the tide charts…'
+            ? 'Lacing up…'
             : games.length === 0
-              ? 'No games on the schedule. A quiet day on the boardwalk.'
+              ? 'No games on the schedule. Off day.'
               : `${games.length} game${games.length === 1 ? '' : 's'} · first tip ${tipClock(games[0].date)} ${tzAbbr(games[0].date)}${
                   pickable ? ` · ${picked}/${pickable} picks made` : ''
                 }`}
@@ -109,8 +111,8 @@ export function GamesView({ ymd, setYmd, favTeams, onToggleFav, picks, onPick, o
 
       {games && games.length === 0 && (
         <div className="empty">
-          <svg viewBox="0 0 120 40" aria-hidden="true"><path d="M2 26c10-8 20-8 30 0s20 8 30 0 20-8 30 0 20 8 26 2" /></svg>
-          <p>Nothing on the slate. Try another day.</p>
+          <span className="empty-mark" aria-hidden="true">Off day</span>
+          <p>Courts are empty. Try another day.</p>
         </div>
       )}
 
@@ -127,7 +129,7 @@ export function GamesView({ ymd, setYmd, favTeams, onToggleFav, picks, onPick, o
           {rest.length > 0 && (
             <>
               <h3 className="rule-head">
-                <span>{mine.length ? 'Around the league' : 'The full slate'}</span>
+                <span>{mine.length ? 'Around the league' : 'Full slate'}</span>
                 <button className="ghost-btn" onClick={reload} disabled={loading} title="Refresh">
                   <Refresh /> {updated ? `Updated ${updated.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}` : 'Refresh'}
                 </button>

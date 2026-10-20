@@ -20,6 +20,7 @@ export function Lede({ game, kicker, onOpen }: Props) {
 
   return (
     <section className="lede" style={style}>
+      {state !== 'post' && <span className="sticker" aria-hidden="true">{state === 'in' ? 'Live now' : 'Must watch'}</span>}
       <button className="lede-hit" onClick={() => onOpen(game)} aria-label={`Open ${away.name} at ${home.name}`} />
       <div className="lede-copy">
         <div className="kicker">
@@ -28,7 +29,7 @@ export function Lede({ game, kicker, onOpen }: Props) {
           {tv.length > 0 && <span className="kicker-tv">{tv.join(' · ')}</span>}
         </div>
         <h2 className="lede-head">
-          {away.short} <em>at</em> {home.short}
+          <span>{away.short}</span> <em>at</em> <span>{home.short}</span>
         </h2>
         <p className="dek">{dek(game)}</p>
         {odds && (

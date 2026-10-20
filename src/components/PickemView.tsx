@@ -76,7 +76,7 @@ export function PickemView({ picks, onGames, goToGames }: Props) {
 
       {days.length === 0 && (
         <div className="empty">
-          <svg viewBox="0 0 120 40" aria-hidden="true"><path d="M2 26c10-8 20-8 30 0s20 8 30 0 20-8 30 0 20 8 26 2" /></svg>
+          <span className="empty-mark" aria-hidden="true">Blank card</span>
           <p>Your card is blank. Make your first picks on today’s slate.</p>
           <button className="btn" onClick={goToGames}>Go to today’s games</button>
         </div>

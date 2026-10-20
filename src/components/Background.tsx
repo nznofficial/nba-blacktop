@@ -1,10 +1,9 @@
-// Fixed atmosphere behind the paper: slow-drifting light caustics and a fine grain.
+// Fixed street texture behind everything: halftone corner fade and concrete grain.
 export function Background() {
   return (
     <div className="tide" aria-hidden="true">
-      <div className="caustic c1" />
-      <div className="caustic c2" />
-      <div className="caustic c3" />
+      <div className="halftone" />
+      <div className="halftone bottom" />
       <div className="grain" />
     </div>
   )

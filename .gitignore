@@ -3,3 +3,6 @@ dist
 dev-dist
 .DS_Store
 *.local
+
+# Not part of the app
+js/

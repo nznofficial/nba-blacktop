@@ -3,7 +3,7 @@ import { fetchStandings, type Conference, type Game, type TeamSide } from './api
 import { Background } from './components/Background'
 import { GameDrawer } from './components/GameDrawer'
 import { GamesView } from './components/GamesView'
-import { Auto, Moon, Star, Sun } from './components/Icons'
+import { Moon, Star, Sun } from './components/Icons'
 import { PickemView } from './components/PickemView'
 import { StandingsView } from './components/StandingsView'
 import { TeamPicker } from './components/TeamPicker'
@@ -19,8 +19,6 @@ const TABS: [Tab, string][] = [
   ['standings', 'Standings'],
   ['pickem', 'Pick’em'],
 ]
-const THEME_NEXT: Record<ThemeMode, ThemeMode> = { auto: 'light', light: 'dark', dark: 'auto' }
-const THEME_LABEL: Record<ThemeMode, string> = { auto: 'Auto', light: 'Concrete', dark: 'After hours' }
 const STANDINGS_TTL = 5 * 60_000
 
 // Supports shareable links like ?date=20261225 and #game=401909088
@@ -30,20 +28,22 @@ const initialDate = () => {
 }
 const gameFromHash = () => location.hash.match(/^#game=(\d+)$/)?.[1] ?? null
 
+// Follows the system theme until the user picks one; each click then flips light <-> dark.
 function useTheme() {
   const [mode, setMode] = useLocalStorage<ThemeMode>('ct.theme', 'auto')
+  const mq = window.matchMedia('(prefers-color-scheme: dark)')
+  const [systemDark, setSystemDark] = useState(mq.matches)
   useEffect(() => {
-    const mq = window.matchMedia('(prefers-color-scheme: dark)')
-    const apply = () => {
-      const dark = mode === 'dark' || (mode === 'auto' && mq.matches)
-      document.documentElement.dataset.theme = dark ? 'dark' : 'light'
-      document.querySelector('meta[name="theme-color"]')?.setAttribute('content', dark ? '#0d0d0e' : '#e9e7e2')
-    }
-    apply()
-    mq.addEventListener('change', apply)
-    return () => mq.removeEventListener('change', apply)
-  }, [mode])
-  return [mode, () => setMode(THEME_NEXT[mode])] as const
+    const onChange = () => setSystemDark(mq.matches)
+    mq.addEventListener('change', onChange)
+    return () => mq.removeEventListener('change', onChange)
+  }, [mq])
+  const dark = mode === 'dark' || (mode === 'auto' && systemDark)
+  useEffect(() => {
+    document.documentElement.dataset.theme = dark ? 'dark' : 'light'
+    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', dark ? '#0d0d0e' : '#e9e7e2')
+  }, [dark])
+  return [dark, () => setMode(dark ? 'light' : 'dark')] as const
 }
 
 export default function App() {
@@ -51,7 +51,7 @@ export default function App() {
   const [ymd, setYmd] = useState(initialDate)
   const [favTeams, setFavTeams] = useLocalStorage<string[]>('ct.favTeams', [])
   const [picks, setPicks] = useLocalStorage<Picks>('ct.picks', {})
-  const [themeMode, cycleTheme] = useTheme()
+  const [isDark, toggleTheme] = useTheme()
   const [showPicker, setShowPicker] = useState(false)
   const [openGameId, setOpenGameId] = useState<string | null>(gameFromHash)
   const knownGames = useRef(new Map<string, Game>())
@@ -131,7 +131,8 @@ export default function App() {
   }
 
   const streak = pickStats(picks).current
-  const ThemeIcon = themeMode === 'auto' ? Auto : themeMode === 'light' ? Sun : Moon
+  const ThemeIcon = isDark ? Sun : Moon
+  const themeLabel = isDark ? 'Switch to Concrete (light)' : 'Switch to After Hours (dark)'
 
   return (
     <>
@@ -155,7 +156,7 @@ export default function App() {
               <Star filled={favTeams.length > 0} size={15} />
               <span className="nav-btn-label">{favTeams.length ? `Following ${favTeams.length}` : 'Follow teams'}</span>
             </button>
-            <button className="nav-btn icon" onClick={cycleTheme} title={`Theme: ${THEME_LABEL[themeMode]}`} aria-label={`Theme: ${THEME_LABEL[themeMode]}. Change theme`}>
+            <button className="nav-btn icon" onClick={toggleTheme} title={themeLabel} aria-label={themeLabel}>
               <ThemeIcon />
             </button>
           </div>

@@ -9,9 +9,6 @@ export const Sun = () => (
 export const Moon = () => (
   <svg {...base} aria-hidden="true"><path d="M20.5 13.2A8.5 8.5 0 1 1 10.8 3.5a6.6 6.6 0 0 0 9.7 9.7z" /></svg>
 )
-export const Auto = () => (
-  <svg {...base} aria-hidden="true"><circle cx="12" cy="12" r="8.5" /><path d="M12 3.5a8.5 8.5 0 0 1 0 17z" fill="currentColor" stroke="none" /></svg>
-)
 export const Star = ({ filled = false, size = 16 }: { filled?: boolean; size?: number }) => (
   <svg {...base} width={size} height={size} fill={filled ? 'currentColor' : 'none'} aria-hidden="true">
     <path d="M12 3.2l2.6 5.4 5.9.8-4.3 4.1 1 5.9L12 16.6l-5.2 2.8 1-5.9-4.3-4.1 5.9-.8z" />

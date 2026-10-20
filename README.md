@@ -1,5 +1,7 @@
 # 🏀 BLACKTOP
 
+**Live:** https://nznofficial.github.io/nba-blacktop/
+
 A streetwear-styled NBA companion for the 2026–27 season, hosted on GitHub Pages. Raw concrete (light) and after-hours asphalt (dark), with Big Shoulders Display signage type, Archivo + IBM Plex Mono, hard borders, offset block shadows, and a safety-orange accent.
 
 - **Ticker**: a scrolling bar of the day's games, scores, and lines.

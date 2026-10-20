@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { fetchStandings, type Conference, type Game, type TeamSide } from './api'
 import { Background } from './components/Background'
+import { GameDrawer } from './components/GameDrawer'
 import { GamesView } from './components/GamesView'
 import { Auto, Moon, Star, Sun } from './components/Icons'
 import { PickemView } from './components/PickemView'
@@ -13,14 +14,21 @@ import { useLocalStorage } from './lib/storage'
 type Tab = 'games' | 'standings' | 'pickem'
 type ThemeMode = 'auto' | 'light' | 'dark'
 
+const TABS: [Tab, string][] = [
+  ['games', 'Scores & Odds'],
+  ['standings', 'Standings'],
+  ['pickem', 'Pick’em'],
+]
 const THEME_NEXT: Record<ThemeMode, ThemeMode> = { auto: 'light', light: 'dark', dark: 'auto' }
+const THEME_LABEL: Record<ThemeMode, string> = { auto: 'Auto', light: 'Day', dark: 'Night' }
 const STANDINGS_TTL = 5 * 60_000
 
-// Supports shareable links like ?date=20261225
+// Supports shareable links like ?date=20261225 and #game=401909088
 const initialDate = () => {
   const d = new URLSearchParams(location.search).get('date')
   return d && /^\d{8}$/.test(d) ? d : todayYMD()
 }
+const gameFromHash = () => location.hash.match(/^#game=(\d+)$/)?.[1] ?? null
 
 function useTheme() {
   const [mode, setMode] = useLocalStorage<ThemeMode>('ct.theme', 'auto')
@@ -29,7 +37,7 @@ function useTheme() {
     const apply = () => {
       const dark = mode === 'dark' || (mode === 'auto' && mq.matches)
       document.documentElement.dataset.theme = dark ? 'dark' : 'light'
-      document.querySelector('meta[name="theme-color"]')?.setAttribute('content', dark ? '#0b1d3a' : '#8fdcf5')
+      document.querySelector('meta[name="theme-color"]')?.setAttribute('content', dark ? '#0a1a22' : '#f5f0e6')
     }
     apply()
     mq.addEventListener('change', apply)
@@ -45,6 +53,9 @@ export default function App() {
   const [picks, setPicks] = useLocalStorage<Picks>('ct.picks', {})
   const [themeMode, cycleTheme] = useTheme()
   const [showPicker, setShowPicker] = useState(false)
+  const [openGameId, setOpenGameId] = useState<string | null>(gameFromHash)
+  const knownGames = useRef(new Map<string, Game>())
+  const [, bump] = useState(0)
 
   const [standings, setStandings] = useState<Conference[] | null>(null)
   const [standingsError, setStandingsError] = useState<string | null>(null)
@@ -64,12 +75,36 @@ export default function App() {
     if (!standingsAt || (tab === 'standings' && Date.now() - standingsAt > STANDINGS_TTL)) loadStandings()
   }, [tab, standingsAt, loadStandings])
 
+  useEffect(() => {
+    const onPop = () => setOpenGameId(gameFromHash())
+    window.addEventListener('popstate', onPop)
+    return () => window.removeEventListener('popstate', onPop)
+  }, [])
+
+  const openGame = useCallback((g: Game) => {
+    history.pushState({ drawer: true }, '', `#game=${g.id}`)
+    setOpenGameId(g.id)
+  }, [])
+
+  const closeGame = useCallback(() => {
+    if (history.state?.drawer) history.back()
+    else history.replaceState(null, '', location.pathname + location.search)
+    setOpenGameId(null)
+  }, [])
+
   const toggleFav = useCallback(
     (id: string) => setFavTeams((f) => (f.includes(id) ? f.filter((x) => x !== id) : [...f, id])),
     [setFavTeams],
   )
 
-  const onGames = useCallback((games: Game[]) => setPicks((p) => gradePicks(p, games)), [setPicks])
+  const onGames = useCallback(
+    (games: Game[]) => {
+      for (const g of games) knownGames.current.set(g.id, g)
+      bump((n) => n + 1)
+      setPicks((p) => gradePicks(p, games))
+    },
+    [setPicks],
+  )
 
   const onPick = useCallback(
     (game: Game, team: TeamSide) =>
@@ -90,67 +125,83 @@ export default function App() {
     [setPicks, ymd],
   )
 
+  const switchTab = (t: Tab) => {
+    setTab(t)
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
   const streak = pickStats(picks).current
   const ThemeIcon = themeMode === 'auto' ? Auto : themeMode === 'light' ? Sun : Moon
 
   return (
     <>
       <Background />
-      <div className="app">
-        <header className="topbar glass">
-          <div className="brand">
-            <span className="brand-mark" aria-hidden="true">🏀</span>
-            <div>
-              <h1>Courtside Tides</h1>
-              <span className="tagline">NBA · 2026–27</span>
-            </div>
+      <nav className="nav">
+        <div className="nav-inner">
+          <button className="wordmark" onClick={() => { setYmd(todayYMD()); switchTab('games') }} aria-label="Courtside Tides, go to today">
+            <svg className="wm-wave" viewBox="0 0 40 14" aria-hidden="true"><path d="M1 9c4-5 8-5 12 0s8 5 12 0 8-5 12 0" /></svg>
+            <span>Courtside <em>Tides</em></span>
+          </button>
+          <div className="nav-tabs" role="tablist">
+            {TABS.map(([key, label]) => (
+              <button key={key} role="tab" aria-selected={tab === key} className={tab === key ? 'on' : ''} onClick={() => switchTab(key)}>
+                {label}
+                {key === 'pickem' && streak >= 2 && <span className="tab-badge num">{streak}</span>}
+              </button>
+            ))}
           </div>
-          <div className="top-actions">
-            {streak >= 2 && <span className="streak-chip" title="Pick'em streak">🔥 {streak}</span>}
-            <button className="icon-btn" onClick={() => setShowPicker(true)} aria-label="Choose my teams" title="My teams">
-              <Star filled={favTeams.length > 0} />
+          <div className="nav-actions">
+            <button className="nav-btn" onClick={() => setShowPicker(true)} title="Follow teams">
+              <Star filled={favTeams.length > 0} size={15} />
+              <span className="nav-btn-label">{favTeams.length ? `Following ${favTeams.length}` : 'Follow teams'}</span>
             </button>
-            <button className="icon-btn" onClick={cycleTheme} aria-label={`Theme: ${themeMode}`} title={`Theme: ${themeMode}`}>
+            <button className="nav-btn icon" onClick={cycleTheme} title={`Theme: ${THEME_LABEL[themeMode]}`} aria-label={`Theme: ${THEME_LABEL[themeMode]}. Change theme`}>
               <ThemeIcon />
             </button>
           </div>
-        </header>
+        </div>
+      </nav>
 
-        <nav className="seg tabs" role="tablist">
-          {([
-            ['games', '🏖️ Games'],
-            ['standings', '🌊 Standings'],
-            ['pickem', "🐚 Pick'em"],
-          ] as const).map(([key, label]) => (
-            <button key={key} role="tab" aria-selected={tab === key} className={tab === key ? 'active' : ''} onClick={() => setTab(key)}>
-              {label}
-            </button>
-          ))}
-        </nav>
+      <main key={tab} className="main">
+        {tab === 'games' && (
+          <GamesView
+            ymd={ymd}
+            setYmd={setYmd}
+            favTeams={favTeams}
+            onToggleFav={toggleFav}
+            picks={picks}
+            onPick={onPick}
+            onGames={onGames}
+            onOpen={openGame}
+          />
+        )}
+        {tab === 'standings' && (
+          <StandingsView conferences={standings} error={standingsError} favTeams={favTeams} onToggleFav={toggleFav} onRetry={loadStandings} />
+        )}
+        {tab === 'pickem' && (
+          <PickemView picks={picks} onGames={onGames} goToGames={() => { setYmd(todayYMD()); switchTab('games') }} />
+        )}
+      </main>
 
-        <main>
-          {tab === 'games' && (
-            <GamesView
-              ymd={ymd}
-              setYmd={setYmd}
-              favTeams={favTeams}
-              onToggleFav={toggleFav}
-              picks={picks}
-              onPick={onPick}
-              onGames={onGames}
-            />
-          )}
-          {tab === 'standings' && (
-            <StandingsView conferences={standings} error={standingsError} favTeams={favTeams} onRetry={loadStandings} />
-          )}
-          {tab === 'pickem' && <PickemView picks={picks} onGames={onGames} goToGames={() => { setYmd(todayYMD()); setTab('games') }} />}
-        </main>
+      <footer className="colophon">
+        <svg viewBox="0 0 120 14" aria-hidden="true"><path d="M1 9c5-6 10-6 15 0s10 6 15 0 10-6 15 0 10 6 15 0 10-6 15 0 10 6 15 0 10-6 15 0 10 6 13 2" /></svg>
+        <p>
+          Courtside <em>Tides</em> · Data from ESPN · Not affiliated with the NBA.
+          <br />
+          Odds for entertainment only. If you gamble, please do so responsibly: 1-800-GAMBLER.
+        </p>
+      </footer>
 
-        <footer className="site-foot">
-          Data from ESPN · Not affiliated with the NBA · Please gamble responsibly (1-800-GAMBLER)
-        </footer>
-      </div>
-
+      {openGameId && (
+        <GameDrawer
+          key={openGameId}
+          gameId={openGameId}
+          initial={knownGames.current.get(openGameId) ?? null}
+          pick={picks[openGameId]}
+          onPick={onPick}
+          onClose={closeGame}
+        />
+      )}
       {showPicker && (
         <TeamPicker conferences={standings} favTeams={favTeams} onToggle={toggleFav} onClose={() => setShowPicker(false)} />
       )}

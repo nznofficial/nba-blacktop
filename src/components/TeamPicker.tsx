@@ -1,6 +1,6 @@
 import { useEffect } from 'react'
 import type { Conference } from '../api'
-import { Star } from './Icons'
+import { Close, Star } from './Icons'
 
 interface Props {
   conferences: Conference[] | null
@@ -17,27 +17,29 @@ export function TeamPicker({ conferences, favTeams, onToggle, onClose }: Props) 
   }, [onClose])
 
   return (
-    <div className="modal-backdrop" onClick={onClose}>
-      <div className="modal glass" role="dialog" aria-modal="true" aria-label="My teams" onClick={(e) => e.stopPropagation()}>
-        <div className="modal-head">
+    <div className="sheet-root">
+      <div className="drawer-backdrop" onClick={onClose} />
+      <div className="sheet" role="dialog" aria-modal="true" aria-label="Follow teams">
+        <header className="sheet-head">
           <div>
-            <h2>My teams</h2>
-            <p className="sub">Starred teams are pinned to the top of each day and highlighted in the standings.</p>
+            <div className="kicker">Personalize</div>
+            <h2 className="sheet-title"><em>Follow</em> your teams</h2>
+            <p className="standfirst">Their games lead each day’s slate and stand out in the standings.</p>
           </div>
-          <button className="pill" onClick={onClose}>Done</button>
-        </div>
-        {!conferences && <p className="sub">Loading teams…</p>}
+          <button className="drawer-close static" onClick={onClose} aria-label="Close"><Close /></button>
+        </header>
+        {!conferences && <div className="skeleton block" />}
         {conferences?.map((c) => (
-          <div key={c.short}>
-            <h3 className="section-title">{c.name}</h3>
+          <div key={c.short} className="sheet-group">
+            <h3 className="rule-head"><span>{c.name}</span></h3>
             <div className="team-grid">
               {[...c.rows].sort((a, b) => a.name.localeCompare(b.name)).map((t) => {
                 const on = favTeams.includes(t.id)
                 return (
-                  <button key={t.id} className={`team-tile${on ? ' on' : ''}`} onClick={() => onToggle(t.id)} aria-pressed={on}>
-                    <img src={t.logo} alt="" width={32} height={32} loading="lazy" />
+                  <button key={t.id} className={`team-opt${on ? ' on' : ''}`} onClick={() => onToggle(t.id)} aria-pressed={on}>
+                    <img src={t.logo} alt="" width={28} height={28} loading="lazy" />
                     <span>{t.name}</span>
-                    <span className="tile-star"><Star filled={on} /></span>
+                    <Star filled={on} size={15} />
                   </button>
                 )
               })}

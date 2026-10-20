@@ -31,3 +31,19 @@ export const shortDate = (ymd: string) =>
 
 export const tipTime = (iso: string) =>
   new Date(iso).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit', timeZoneName: 'short' })
+
+/** Editorial headline for a day's slate: "Tonight's Slate", "Tuesday's Slate", "Yesterday's Results". */
+export function slateHeadline(ymd: string) {
+  const t = todayYMD()
+  if (ymd === t) return { lead: "Tonight's", tail: 'Slate' }
+  if (ymd === addDays(t, -1)) return { lead: "Yesterday's", tail: 'Results' }
+  if (ymd === addDays(t, 1)) return { lead: "Tomorrow's", tail: 'Slate' }
+  const wd = fromYMD(ymd).toLocaleDateString(undefined, { weekday: 'long' })
+  return { lead: `${wd}'s`, tail: ymd < t ? 'Results' : 'Slate' }
+}
+
+export const tipClock = (iso: string) =>
+  new Date(iso).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })
+
+export const tzAbbr = (iso: string) =>
+  new Date(iso).toLocaleTimeString(undefined, { timeZoneName: 'short' }).split(' ').pop() ?? ''

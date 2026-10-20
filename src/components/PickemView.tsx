@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { fetchScoreboard, type Game } from '../api'
 import { dayLabel, shortDate, todayYMD } from '../lib/date'
 import { pickStats, shareText, type Picks } from '../lib/picks'
+import { Share } from './Icons'
 
 interface Props {
   picks: Picks
@@ -44,42 +45,40 @@ export function PickemView({ picks, onGames, goToGames }: Props) {
   }
 
   const total = stats.wins + stats.losses
-  const tiles = [
-    { label: 'Record', value: `${stats.wins}-${stats.losses}` },
+  const figures = [
+    { label: 'Record', value: `${stats.wins}–${stats.losses}` },
     { label: 'Hit rate', value: total ? `${Math.round((stats.wins / total) * 100)}%` : '—' },
-    { label: 'Streak', value: stats.current ? `🔥 ${stats.current}` : '0' },
-    { label: 'Best streak', value: String(stats.best) },
-    { label: 'Perfect days', value: stats.perfectDays ? `🐚 ${stats.perfectDays}` : '0' },
-    { label: 'Pending', value: String(stats.pending) },
+    { label: 'Streak', value: String(stats.current), hot: stats.current >= 3 },
+    { label: 'Best run', value: String(stats.best) },
+    { label: 'Perfect days', value: String(stats.perfectDays) },
   ]
 
   return (
-    <section>
-      <div className="glass pickem-hero">
-        <div>
-          <div className="eyebrow">Daily Pick'em</div>
-          <h2>Ride the wave 🏄</h2>
-          <p className="sub">
-            Pick the winner of each game before tip-off from the Games tab. Picks are graded automatically,
-            so come back daily to build your streak. A day with every pick right counts as a perfect day.
-          </p>
-        </div>
-        <button className="pill" onClick={goToGames}>Make picks</button>
-      </div>
+    <div className="page">
+      <header className="masthead">
+        <div className="dateline"><span>Daily pick’em</span></div>
+        <h1 className="page-title"><em>Your</em> Card</h1>
+        <p className="standfirst">
+          Pick a winner in every game before tip-off. Picks are graded automatically when games go final. Build a streak, and
+          chase the perfect day.
+        </p>
+      </header>
 
-      <div className="tiles">
-        {tiles.map((t) => (
-          <div key={t.label} className="glass tile">
-            <div className="tile-value">{t.value}</div>
-            <div className="tile-label">{t.label}</div>
+      <div className="figures">
+        {figures.map((f) => (
+          <div key={f.label} className={`figure${f.hot ? ' hot' : ''}`}>
+            <span className="fig-val num">{f.value}</span>
+            <span className="fig-label">{f.label}</span>
           </div>
         ))}
       </div>
+      {stats.pending > 0 && <p className="footnote left">{stats.pending} pick{stats.pending === 1 ? '' : 's'} awaiting a final whistle.</p>}
 
       {days.length === 0 && (
-        <div className="glass notice empty">
-          <div className="big">🐚</div>
-          <p>No picks yet. Head to today's games and tap a team under “Your pick”.</p>
+        <div className="empty">
+          <svg viewBox="0 0 120 40" aria-hidden="true"><path d="M2 26c10-8 20-8 30 0s20 8 30 0 20-8 30 0 20 8 26 2" /></svg>
+          <p>Your card is blank. Make your first picks on today’s slate.</p>
+          <button className="btn" onClick={goToGames}>Go to today’s games</button>
         </div>
       )}
 
@@ -87,30 +86,29 @@ export function PickemView({ picks, onGames, goToGames }: Props) {
         const w = list.filter((p) => p.result === 'W').length
         const graded = list.filter((p) => p.result).length
         return (
-          <div key={ymd} className="glass pick-day">
-            <div className="pick-day-head">
-              <div>
-                <strong>{ymd === todayYMD() ? 'Today' : dayLabel(ymd)}</strong> <span className="sub">{shortDate(ymd)}</span>
-              </div>
-              <div className="pick-day-actions">
-                <span className="grid-emoji">{list.map((p) => (p.result === 'W' ? '🌊' : p.result === 'L' ? '🪨' : '🐚')).join('')}</span>
-                <span className="sub">{graded ? `${w}/${graded}` : 'pending'}</span>
-                <button className="pill ghost small" onClick={() => share(ymd)}>{copied === ymd ? 'Copied!' : 'Share'}</button>
-              </div>
-            </div>
-            <ul className="pick-list">
+          <section key={ymd} className="ledger">
+            <h3 className="rule-head">
+              <span>{ymd === todayYMD() ? 'Today' : dayLabel(ymd)} · {shortDate(ymd)}</span>
+              <span className="ledger-actions">
+                <span className="marks" aria-label={`${w} of ${graded} correct`}>
+                  {list.map((p) => <i key={p.gameId} className={p.result === 'W' ? 'hit' : p.result === 'L' ? 'miss' : ''} />)}
+                </span>
+                <span className="num ledger-score">{graded ? `${w}/${graded}` : 'Pending'}</span>
+                <button className="ghost-btn" onClick={() => share(ymd)}><Share /> {copied === ymd ? 'Copied' : 'Share'}</button>
+              </span>
+            </h3>
+            <ul className="ledger-list">
               {list.map((p) => (
-                <li key={p.gameId} className={p.result ? p.result.toLowerCase() : 'pending'}>
-                  <span>{p.matchup}</span>
-                  <span>
-                    picked <b>{p.teamAbbr}</b> {p.result === 'W' ? '✅' : p.result === 'L' ? '❌' : '⏳'}
-                  </span>
+                <li key={p.gameId} className={p.result === 'W' ? 'hit' : p.result === 'L' ? 'miss' : ''}>
+                  <span className="num">{p.matchup}</span>
+                  <span>Picked <b>{p.teamAbbr}</b></span>
+                  <span className="verdict">{p.result === 'W' ? 'Correct' : p.result === 'L' ? 'Missed' : 'Pending'}</span>
                 </li>
               ))}
             </ul>
-          </div>
+          </section>
         )
       })}
-    </section>
+    </div>
   )
 }

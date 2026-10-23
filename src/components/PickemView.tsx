@@ -70,7 +70,8 @@ export function PickemView({ picks, onGames, goToGames }: Props) {
       const blob = cards.current.get(key) ?? (await canvasBlob(await render()))
       const file = new File([blob], `blacktop-pickem-${key}.png`, { type: 'image/png' })
       if (navigator.canShare?.({ files: [file] })) {
-        await navigator.share({ files: [file], text: APP_URL })
+        // iOS Messages puts shared text above the photo; passing the link as `url` keeps the photo first there.
+        await navigator.share(isIOS() ? { files: [file], url: APP_URL } : { files: [file], text: APP_URL })
       } else if (navigator.share) {
         await navigator.share({ url: APP_URL })
       } else {
@@ -180,3 +181,6 @@ export function PickemView({ picks, onGames, goToGames }: Props) {
     </div>
   )
 }
+
+// iPadOS reports itself as a Mac, so also check for touch.
+const isIOS = () => /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)

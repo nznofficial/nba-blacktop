@@ -225,6 +225,7 @@ h1, h2, h3, h4, p { margin: 0; }
   text-transform: uppercase; color: var(--ink-2); padding: 6px 8px; border: 1.5px solid transparent; transition: border-color 0.15s, color 0.15s;
 }
 .ghost-btn:hover { color: var(--ink); border-color: var(--ink); }
+.ghost-btn.send-link { color: var(--on-accent); background: var(--accent); border-color: var(--ink); }
 .footnote { margin: 22px 0 0; font: 500 11.5px/1.6 var(--mono); color: var(--ink-3); text-align: center; text-transform: uppercase; letter-spacing: 0.04em; }
 .footnote.left { text-align: left; margin-top: 10px; }
 .card-foot { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-top: 10px; }

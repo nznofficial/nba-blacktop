@@ -18,6 +18,9 @@ export function PickemView({ picks, onGames, goToGames }: Props) {
   // Card images rendered ahead of time (key: 'card' or a day's ymd), so tapping Share can open the sheet without
   // an async gap (iOS Safari drops the tap's user activation if we render first).
   const cards = useRef(new Map<string, Blob>())
+  // On iOS the photo goes out alone; the same button then offers the link as a second message so it lands below.
+  const [linkFor, setLinkFor] = useState<string | null>(null)
+  const linkTimer = useRef<ReturnType<typeof setTimeout>>(undefined)
 
   const days = useMemo(() => {
     const map = new Map<string, Picks[string][]>()
@@ -64,14 +67,27 @@ export function PickemView({ picks, onGames, goToGames }: Props) {
   // Share sheet with the card image and the link under it; on desktop, copy (or download) the image and copy the link.
   const share = async (key: string, render: () => Promise<HTMLCanvasElement>) => {
     if (busy) return
+    if (linkFor === key) {
+      clearTimeout(linkTimer.current)
+      setLinkFor(null)
+      await navigator.share({ url: APP_URL }).catch(() => {})
+      return
+    }
     setBusy(key)
     let label: string | null = null
     try {
       const blob = cards.current.get(key) ?? (await canvasBlob(await render()))
       const file = new File([blob], `blacktop-pickem-${key}.png`, { type: 'image/png' })
       if (navigator.canShare?.({ files: [file] })) {
-        // iOS Messages puts shared text above the photo; passing the link as `url` keeps the photo first there.
-        await navigator.share(isIOS() ? { files: [file], url: APP_URL } : { files: [file], text: APP_URL })
+        if (isIOS()) {
+          // iOS Messages always puts shared text or links above the photo, so send the photo by itself first.
+          await navigator.share({ files: [file] })
+          clearTimeout(linkTimer.current)
+          setLinkFor(key)
+          linkTimer.current = setTimeout(() => setLinkFor(null), 15000)
+        } else {
+          await navigator.share({ files: [file], text: APP_URL })
+        }
       } else if (navigator.share) {
         await navigator.share({ url: APP_URL })
       } else {
@@ -100,7 +116,9 @@ export function PickemView({ picks, onGames, goToGames }: Props) {
       setTimeout(() => setStatus(null), 2000)
     }
   }
-  const shareLabel = (key: string) => (busy === key ? 'Making…' : status?.key === key ? status.label : 'Share')
+  const shareLabel = (key: string) =>
+    busy === key ? 'Making…' : linkFor === key ? 'Send link' : status?.key === key ? status.label : 'Share'
+  const shareClass = (key: string) => `ghost-btn${linkFor === key ? ' send-link' : ''}`
 
   const total = stats.wins + stats.losses
   const figures = [
@@ -135,7 +153,7 @@ export function PickemView({ picks, onGames, goToGames }: Props) {
           {stats.pending > 0 && `${stats.pending} pick${stats.pending === 1 ? '' : 's'} awaiting a final whistle.`}
         </p>
         {days.length > 0 && (
-          <button className="ghost-btn" onClick={() => share('card', () => renderSeasonCard(picks))} disabled={busy === 'card'}>
+          <button className={shareClass('card')} onClick={() => share('card', () => renderSeasonCard(picks))} disabled={busy === 'card'}>
             <Share /> {shareLabel('card')}
           </button>
         )}
@@ -161,7 +179,7 @@ export function PickemView({ picks, onGames, goToGames }: Props) {
                   {list.map((p) => <i key={p.gameId} className={p.result === 'W' ? 'hit' : p.result === 'L' ? 'miss' : ''} />)}
                 </span>
                 <span className="num ledger-score">{graded ? `${w}/${graded}` : 'Pending'}</span>
-                <button className="ghost-btn" onClick={() => share(ymd, () => renderDayCard(picks, ymd))} disabled={busy === ymd}>
+                <button className={shareClass(ymd)} onClick={() => share(ymd, () => renderDayCard(picks, ymd))} disabled={busy === ymd}>
                   <Share /> {shareLabel(ymd)}
                 </button>
               </span>

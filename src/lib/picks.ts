@@ -60,10 +60,16 @@ export function pickStats(picks: Picks): PickStats {
   }
 }
 
-export function shareText(picks: Picks, ymd: string, dateLabel: string) {
-  const day = Object.values(picks)
+export const APP_URL = 'https://nznofficial.github.io/nba-blacktop/'
+
+/** One day's picks in tip-off order. */
+export const dayPicks = (picks: Picks, ymd: string) =>
+  Object.values(picks)
     .filter((p) => p.ymd === ymd)
     .sort((a, b) => +new Date(a.tip) - +new Date(b.tip))
+
+export function shareText(picks: Picks, ymd: string, dateLabel: string) {
+  const day = dayPicks(picks, ymd)
   const w = day.filter((p) => p.result === 'W').length
   const graded = day.filter((p) => p.result).length
   const grid = day.map((p) => (p.result === 'W' ? '🔥' : p.result === 'L' ? '🧱' : '⏳')).join('')

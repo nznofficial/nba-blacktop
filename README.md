@@ -11,7 +11,7 @@ A streetwear-styled NBA companion for the 2026–27 season, hosted on GitHub Pag
 - **Odds**: moneyline, spread, and over/under (DraftKings via ESPN), with a **FAV** badge on the betting favorite.
 - **My teams**: star teams to pin their games to the top and highlight them in the standings.
 - **Standings**: East and West with playoff (1–6) and play-in (7–10) cut lines, L10, and streaks.
-- **Daily Pick'em**: pick winners before tip-off. Picks are auto-graded, with streaks, perfect days, and a shareable emoji grid.
+- **Daily Pick'em**: pick winners before tip-off. Picks are auto-graded, with streaks, perfect days, and a shareable image card (with your season stats and a link back to the app).
 - **Extras**: browse any date (`?date=YYYYMMDD` and `#game=<id>` deep links), light/dark (auto, Concrete, After Hours), and installable as a PWA.
 
 ## Develop

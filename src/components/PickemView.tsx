@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { fetchScoreboard, type Game } from '../api'
 import { dayLabel, shortDate, todayYMD } from '../lib/date'
-import { pickStats, shareText, type Picks } from '../lib/picks'
+import { APP_URL, dayPicks, pickStats, shareText, type Picks } from '../lib/picks'
+import { canvasBlob, renderShareCard } from '../lib/shareCard'
 import { Share } from './Icons'
 
 interface Props {
@@ -12,7 +13,11 @@ interface Props {
 
 export function PickemView({ picks, onGames, goToGames }: Props) {
   const stats = useMemo(() => pickStats(picks), [picks])
-  const [copied, setCopied] = useState<string | null>(null)
+  const [status, setStatus] = useState<{ ymd: string; label: string } | null>(null)
+  const [busy, setBusy] = useState<string | null>(null)
+  // Card images pre-rendered by the thumbnails, so tapping Share can open the sheet without an async gap
+  // (iOS Safari drops the tap's user activation if we render first).
+  const cards = useRef(new Map<string, Blob>())
 
   const days = useMemo(() => {
     const map = new Map<string, Picks[string][]>()
@@ -32,15 +37,44 @@ export function PickemView({ picks, onGames, goToGames }: Props) {
     for (const ymd of ungradedDays.split(',')) fetchScoreboard(ymd).then(onGames).catch(() => {})
   }, [ungradedDays, onGames])
 
+  // Share sheet with the card image where supported; otherwise copy (or download) the image and copy the text + link.
   const share = async (ymd: string) => {
+    if (busy) return
+    setBusy(ymd)
     const text = shareText(picks, ymd, shortDate(ymd))
+    const withLink = `${text}\n${APP_URL}`
+    let label: string | null = null
     try {
-      if (navigator.share) await navigator.share({ text })
-      else await navigator.clipboard.writeText(text)
-      setCopied(ymd)
-      setTimeout(() => setCopied(null), 2000)
+      const blob = cards.current.get(ymd) ?? (await canvasBlob(await renderShareCard(picks, ymd)))
+      const file = new File([blob], `blacktop-pickem-${ymd}.png`, { type: 'image/png' })
+      if (navigator.canShare?.({ files: [file] })) {
+        await navigator.share({ files: [file], text: withLink })
+      } else if (navigator.share) {
+        await navigator.share({ text, url: APP_URL })
+      } else {
+        try {
+          await navigator.clipboard.write([
+            new ClipboardItem({ 'image/png': blob, 'text/plain': new Blob([withLink], { type: 'text/plain' }) }),
+          ])
+          label = 'Copied'
+        } catch {
+          const a = document.createElement('a')
+          a.href = URL.createObjectURL(blob)
+          a.download = file.name
+          a.click()
+          setTimeout(() => URL.revokeObjectURL(a.href), 1000)
+          await navigator.clipboard.writeText(withLink).catch(() => {})
+          label = 'Saved'
+        }
+      }
     } catch {
       /* user dismissed share sheet */
+    } finally {
+      setBusy(null)
+    }
+    if (label) {
+      setStatus({ ymd, label })
+      setTimeout(() => setStatus(null), 2000)
     }
   }
 
@@ -94,21 +128,65 @@ export function PickemView({ picks, onGames, goToGames }: Props) {
                   {list.map((p) => <i key={p.gameId} className={p.result === 'W' ? 'hit' : p.result === 'L' ? 'miss' : ''} />)}
                 </span>
                 <span className="num ledger-score">{graded ? `${w}/${graded}` : 'Pending'}</span>
-                <button className="ghost-btn" onClick={() => share(ymd)}><Share /> {copied === ymd ? 'Copied' : 'Share'}</button>
+                <button className="ghost-btn" onClick={() => share(ymd)} disabled={busy === ymd}>
+                  <Share /> {busy === ymd ? 'Making…' : status?.ymd === ymd ? status.label : 'Share'}
+                </button>
               </span>
             </h3>
-            <ul className="ledger-list">
-              {list.map((p) => (
-                <li key={p.gameId} className={p.result === 'W' ? 'hit' : p.result === 'L' ? 'miss' : ''}>
-                  <span className="num">{p.matchup}</span>
-                  <span>Picked <b>{p.teamAbbr}</b></span>
-                  <span className="verdict">{p.result === 'W' ? 'Correct' : p.result === 'L' ? 'Missed' : 'Pending'}</span>
-                </li>
-              ))}
-            </ul>
+            <div className="ledger-body">
+              <ShareThumb
+                picks={picks}
+                ymd={ymd}
+                onBlob={(b) => cards.current.set(ymd, b)}
+                onClick={() => share(ymd)}
+              />
+              <ul className="ledger-list">
+                {list.map((p) => (
+                  <li key={p.gameId} className={p.result === 'W' ? 'hit' : p.result === 'L' ? 'miss' : ''}>
+                    <span className="num">{p.matchup}</span>
+                    <span>Picked <b>{p.teamAbbr}</b></span>
+                    <span className="verdict">{p.result === 'W' ? 'Correct' : p.result === 'L' ? 'Missed' : 'Pending'}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
           </section>
         )
       })}
     </div>
+  )
+}
+
+/** Small preview of the day's share image; tapping it shares. */
+function ShareThumb({ picks, ymd, onBlob, onClick }: { picks: Picks; ymd: string; onBlob: (b: Blob) => void; onClick: () => void }) {
+  const [src, setSrc] = useState<string | null>(null)
+  // Redraw only when something on the card changes: this day's picks/results or the season figures.
+  const key = useMemo(() => {
+    const s = pickStats(picks)
+    return JSON.stringify([dayPicks(picks, ymd).map((p) => [p.matchup, p.teamAbbr, p.result]), s, todayYMD()])
+  }, [picks, ymd])
+
+  useEffect(() => {
+    let url: string | null = null
+    let live = true
+    renderShareCard(picks, ymd)
+      .then(canvasBlob)
+      .then((blob) => {
+        if (!live) return
+        onBlob(blob)
+        url = URL.createObjectURL(blob)
+        setSrc(url)
+      })
+      .catch(() => {})
+    return () => {
+      live = false
+      if (url) URL.revokeObjectURL(url)
+    }
+  }, [key])
+
+  return (
+    <button className="share-thumb" onClick={onClick} aria-label={`Share your ${shortDate(ymd)} card`}>
+      {src ? <img src={src} alt="" width={1080} height={1080} /> : <span aria-hidden="true" />}
+    </button>
   )
 }

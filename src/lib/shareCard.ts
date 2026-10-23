@@ -1,5 +1,5 @@
-import { dayLabel, shortDate } from './date'
-import { dayPicks, pickStats, type Picks } from './picks'
+import { dayLabel, shortDate, todayYMD } from './date'
+import { dayPicks, pickStats, type Picks, type PickStats } from './picks'
 
 // The share image is always drawn in the After Hours palette so it reads the same wherever it's posted.
 const C = {
@@ -52,20 +52,26 @@ function spaced(ctx: CanvasRenderingContext2D, text: string, x: number, y: numbe
 
 const verdictOf = (r?: 'W' | 'L') => (r === 'W' ? { text: 'CORRECT', bg: C.win } : r === 'L' ? { text: 'MISSED', bg: C.live } : null)
 
-/** Draws the 1080×1080 Pick'em card for one day: header, day score, picks, and the overall "Your Card" strip. */
-export async function renderShareCard(picks: Picks, ymd: string): Promise<HTMLCanvasElement> {
+/** The same five figures as the page's stats block. */
+const cardFigures = (stats: PickStats) => {
+  const total = stats.wins + stats.losses
+  return [
+    { label: 'RECORD', value: `${stats.wins}–${stats.losses}` },
+    { label: 'HIT RATE', value: total ? `${Math.round((stats.wins / total) * 100)}%` : '—' },
+    { label: 'STREAK', value: String(stats.current), hot: stats.current >= 3 },
+    { label: 'BEST RUN', value: String(stats.best) },
+    { label: 'PERFECT', value: String(stats.perfectDays) },
+  ]
+}
+
+/** A blank 1080×1080 canvas with the asphalt, dot grid, border, header, and footer drawn. */
+async function newCard(tape: string, dateline: string) {
   await loadFonts()
   const S = SHARE_SIZE
   const canvas = document.createElement('canvas')
   canvas.width = canvas.height = S
   const ctx = canvas.getContext('2d')!
   ctx.textBaseline = 'alphabetic'
-
-  const list = dayPicks(picks, ymd)
-  const w = list.filter((p) => p.result === 'W').length
-  const graded = list.filter((p) => p.result).length
-  const perfect = list.length >= 2 && w === list.length
-  const stats = pickStats(picks)
 
   // Asphalt + dot grid
   ctx.fillStyle = C.paper
@@ -85,7 +91,6 @@ export async function renderShareCard(picks: Picks, ymd: string): Promise<HTMLCa
   ctx.translate(S - PAD, PAD + 30)
   ctx.rotate(-0.035)
   ctx.font = `700 22px ${MONO}`
-  const tape = "DAILY PICK'EM"
   const tw = [...tape].reduce((s, ch) => s + ctx.measureText(ch).width + 3, -3)
   ctx.fillStyle = C.accent
   ctx.fillRect(-tw - 36, -26, tw + 36, 46)
@@ -95,16 +100,35 @@ export async function renderShareCard(picks: Picks, ymd: string): Promise<HTMLCa
 
   ctx.fillStyle = C.ink2
   ctx.font = `500 26px ${MONO}`
-  spaced(ctx, `${dayLabel(ymd)} · ${shortDate(ymd)}`.toUpperCase(), PAD, PAD + 118, 2)
+  spaced(ctx, dateline.toUpperCase(), PAD, PAD + 118, 2)
 
   ctx.fillStyle = C.rule
   ctx.fillRect(PAD, PAD + 146, S - PAD * 2, 2)
 
+  // Footer
+  ctx.font = `500 22px ${MONO}`
+  ctx.fillStyle = C.ink3
+  spaced(ctx, 'NZNOFFICIAL.GITHUB.IO/NBA-BLACKTOP', PAD, S - 46, 1.5)
+  ctx.font = `800 22px ${SANS}`
+  ctx.fillStyle = C.accent
+  spaced(ctx, 'MAKE YOUR PICKS →', S - PAD, S - 46, 2, 'right')
+
+  return { canvas, ctx, S }
+}
+
+/** Draws the Pick'em card for one day: header, day score, picks, and the overall "Your Card" strip. */
+export async function renderDayCard(picks: Picks, ymd: string): Promise<HTMLCanvasElement> {
+  const { canvas, ctx, S } = await newCard("DAILY PICK'EM", `${dayLabel(ymd)} · ${shortDate(ymd)}`)
+  const list = dayPicks(picks, ymd)
+  const w = list.filter((p) => p.result === 'W').length
+  const graded = list.filter((p) => p.result).length
+  const perfect = list.length >= 2 && w === list.length
+
   // Hero: day score + marks
-  const heroBase = 404
+  const heroBase = 416
   ctx.fillStyle = graded ? C.ink : C.ink3
   const score = graded ? `${w}/${graded}` : 'PENDING'
-  const scorePx = fit(ctx, score, (px) => `900 ${px}px ${DISPLAY}`, graded ? 230 : 170, 520)
+  const scorePx = fit(ctx, score, (px) => `900 ${px}px ${DISPLAY}`, graded ? 210 : 170, 520)
   ctx.fillText(score, PAD - 4, heroBase)
   const scoreW = ctx.measureText(score).width
 
@@ -131,7 +155,7 @@ export async function renderShareCard(picks: Picks, ymd: string): Promise<HTMLCa
   })
 
   // Pick list: one column for small slates, two for big ones
-  const top = heroBase + 66
+  const top = heroBase + 54
   const bottom = 806
   const cols = list.length > 7 ? 2 : 1
   const rows = Math.max(1, Math.ceil(list.length / cols))
@@ -185,14 +209,7 @@ export async function renderShareCard(picks: Picks, ymd: string): Promise<HTMLCa
   })
 
   // "Your Card" strip with the season-long figures
-  const total = stats.wins + stats.losses
-  const figures = [
-    { label: 'RECORD', value: `${stats.wins}–${stats.losses}` },
-    { label: 'HIT RATE', value: total ? `${Math.round((stats.wins / total) * 100)}%` : '—' },
-    { label: 'STREAK', value: String(stats.current), hot: stats.current >= 3 },
-    { label: 'BEST RUN', value: String(stats.best) },
-    { label: 'PERFECT', value: String(stats.perfectDays) },
-  ]
+  const figures = cardFigures(pickStats(picks))
   const stripY = 846
   const stripH = 120
   const stripW = S - PAD * 2
@@ -227,13 +244,48 @@ export async function renderShareCard(picks: Picks, ymd: string): Promise<HTMLCa
   ctx.lineWidth = 3
   ctx.strokeRect(PAD, stripY + 14, stripW, stripH)
 
-  // Footer
-  ctx.font = `500 22px ${MONO}`
+  return canvas
+}
+
+/** Draws the season card: the record as the hero, then hit rate, streak, best run, and perfect days. */
+export async function renderSeasonCard(picks: Picks): Promise<HTMLCanvasElement> {
+  const { canvas, ctx, S } = await newCard("PICK'EM CARD", `Your card · as of ${shortDate(todayYMD())}`)
+  const [record, ...rest] = cardFigures(pickStats(picks))
+  const W = S - PAD * 2
+
+  ctx.fillStyle = C.ink
+  fit(ctx, record.value, (px) => `900 ${px}px ${DISPLAY}`, 300, W)
+  ctx.fillText(record.value, PAD - 6, 500)
   ctx.fillStyle = C.ink3
-  spaced(ctx, 'NZNOFFICIAL.GITHUB.IO/NBA-BLACKTOP', PAD, S - 46, 1.5)
-  ctx.font = `800 22px ${SANS}`
-  ctx.fillStyle = C.accent
-  spaced(ctx, 'MAKE YOUR PICKS →', S - PAD, S - 46, 2, 'right')
+  ctx.font = `700 22px ${MONO}`
+  spaced(ctx, record.label, PAD, 548, 3)
+
+  // 2×2 grid of hard-bordered cells, like the page's .figures block
+  const gy = 588
+  const cellW = W / 2
+  const cellH = 186
+  ctx.fillStyle = C.card
+  ctx.fillRect(PAD, gy, W, cellH * 2)
+  rest.forEach((f, i) => {
+    const x = PAD + (i % 2) * cellW
+    const y = gy + Math.floor(i / 2) * cellH
+    if (f.hot) {
+      ctx.fillStyle = C.accent
+      ctx.fillRect(x, y, cellW, cellH)
+    }
+    ctx.fillStyle = f.hot ? C.paper : C.ink
+    fit(ctx, f.value, (px) => `900 ${px}px ${DISPLAY}`, 116, cellW - 64)
+    ctx.fillText(f.value, x + 32, y + 116)
+    ctx.fillStyle = f.hot ? C.paper : C.ink3
+    ctx.font = `600 18px ${MONO}`
+    spaced(ctx, f.label === 'PERFECT' ? 'PERFECT DAYS' : f.label, x + 32, y + 156, 2.5)
+  })
+  ctx.fillStyle = C.ink
+  ctx.fillRect(PAD + cellW - 1.5, gy, 3, cellH * 2)
+  ctx.fillRect(PAD, gy + cellH - 1.5, W, 3)
+  ctx.strokeStyle = C.ink
+  ctx.lineWidth = 3
+  ctx.strokeRect(PAD, gy, W, cellH * 2)
 
   return canvas
 }

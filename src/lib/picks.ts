@@ -67,12 +67,3 @@ export const dayPicks = (picks: Picks, ymd: string) =>
   Object.values(picks)
     .filter((p) => p.ymd === ymd)
     .sort((a, b) => +new Date(a.tip) - +new Date(b.tip))
-
-export function shareText(picks: Picks, ymd: string, dateLabel: string) {
-  const day = dayPicks(picks, ymd)
-  const w = day.filter((p) => p.result === 'W').length
-  const graded = day.filter((p) => p.result).length
-  const grid = day.map((p) => (p.result === 'W' ? '🔥' : p.result === 'L' ? '🧱' : '⏳')).join('')
-  const { current } = pickStats(picks)
-  return `🏀 BLACKTOP Pick'em — ${dateLabel}\n${w}/${graded || day.length} ${grid}${current >= 2 ? `\n🔥 ${current}-pick streak` : ''}`
-}
